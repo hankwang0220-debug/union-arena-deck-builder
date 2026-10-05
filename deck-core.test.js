@@ -1,0 +1,12 @@
+﻿'use strict';
+const assert=require('node:assert/strict');const core=require('./deck-core.js');
+const cards=Array.from({length:15},(_,i)=>({id:'T'+i,series:'A',color:'紅',cost:i%6}));cards.push({id:'OTHER',series:'B',color:'紅',cost:0});
+const syn=()=>({score:50,reasons:['同作品','同色']});
+let deck={};for(let i=0;i<5;i++)deck=core.addCard(deck,'T0',cards).deck;assert.equal(deck.T0,4);
+assert.deepEqual(core.addCard(deck,'unknown',cards).deck,deck);
+const draft=core.build(cards[0],cards,syn);assert.equal(core.total(draft.deck),50);assert.equal(draft.missing,0);assert.ok(Object.values(draft.deck).every(n=>n<=4));assert.ok(!draft.deck.OTHER);assert.deepEqual(core.validate(draft.deck,cards),[]);
+assert.equal(core.total(core.addCard(draft.deck,'T14',cards).deck),50);
+const small=core.build(cards[0],cards.slice(0,3),syn);assert.equal(small.missing,38);
+const recs=core.recommend(cards[0],cards,{T1:4},syn);assert.ok(recs.every(r=>r.card.id!=='OTHER'&&r.card.id!=='T1'&&r.card.id!=='T0'));assert.ok(recs.some(r=>r.reasons.includes('補充低能源起手')));
+assert.ok(core.validate({T0:5,OTHER:1},cards).length>=3);
+console.log('Passed: copy limit, deck cap, unknown cards, full draft, shortfall, compatible recommendations, curve bonus and validation.');
