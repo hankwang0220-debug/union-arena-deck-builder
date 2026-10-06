@@ -145,7 +145,7 @@ const selectedPrice = id => priceVersions(id).find(p=>p.path===selectedPrices[id
 function priceSummary(id){
   const chosen=selectedPrice(id), versions=priceVersions(id);
   if(chosen) return `${yen(chosen.amount)}／張 · ${chosen.stock}`;
-  return versions.length ? `同卡號 ${yen(versions[0].amount)} 起 · ${versions.length} 個價格版本` : '尚未查價';
+  return versions.length ? `參考價 ${yen(versions[0].amount)} 起 · ${versions.length} 個價格版本` : '尚未查價';
 }
 function priceVersionLabel(p){const c=cardById.get(p.number.split('/').pop());return c?p.label.replace(c.nameJa,c.name):p.label;}
 function priceSelect(id){
@@ -154,8 +154,8 @@ function priceSelect(id){
   return `<select class="price-select" aria-label="選擇 ${esc(id)} 的價格版本" onchange="choosePrice('${id}',this.value)"><option value="">請選擇價格版本</option>${versions.map(p=>`<option value="${p.path}" ${selectedPrices[id]===p.path?'selected':''}>${esc(p.number)} · ${esc(priceVersionLabel(p))} · ${yen(p.amount)} · ${p.stock}</option>`).join('')}</select>`;
 }
 function priceDetail(id){
-  const p=selectedPrice(id);
-  return `<section class="price-box"><h3>遊々亭參考售價</h3><p class="muted">僅列出相同卡號的商品；普通版、平行版及再版分開選價。</p>${priceSelect(id)}<p>${p?`<b class="price">${yen(p.amount)}／張</b> · 查價時${p.stock}<br><a href="https://yuyu-tei.jp/sell/ua/card/${p.path}" target="_blank" rel="noopener noreferrer">查看這個版本的商品頁 ↗</a>`:'未查價或未選版的卡片不計入價格小計。'}</p><small class="muted">查價：${priceSnapshot.date} · 日圓販売售價，非買取價。價格與庫存可能變動，以商品頁為準。<br>${exchangeRateNote()}</small></section>`;
+  const p=selectedPrice(id), versions=priceVersions(id), low=versions[0];
+  return `<section class="price-box"><h3>遊々亭參考售價</h3><p class="muted">僅列出相同卡號的商品；普通版、平行版及再版分開選價。</p>${priceSelect(id)}<p>${p?`<b class="price">${yen(p.amount)}／張</b> · 查價時${p.stock}<br><a href="https://yuyu-tei.jp/sell/ua/card/${p.path}" target="_blank" rel="noopener noreferrer">查看這個版本的商品頁 ↗</a>`:low?`<b class="price">${yen(low.amount)} 起</b> · 同卡號最低價，共 ${versions.length} 個價格版本<br><span class="muted">選擇版本後才會計入牌組價格小計。</span>`:'未查價或未選版的卡片不計入價格小計。'}</p><small class="muted">查價：${priceSnapshot.date} · 日圓販売售價，非買取價。價格與庫存可能變動，以商品頁為準。<br>${exchangeRateNote()}</small></section>`;
 }
 function choosePrice(id,path){
   if(path && !priceVersions(id).some(p=>p.path===path)) return;
