@@ -70,4 +70,20 @@ assert.equal(run("deck['EVA-1-105']"),2);
 assert.equal(run("filterCards([{id:'IMS-3-040',type:'事件'},{id:'EVA-1-105',type:'角色'}],{restriction:'1'}).length"),1);
 for(const source of data.sources)assert.equal(source.cardCount,data.cards.filter(c=>c.series===source.title).length);
 run("const pending=cards.find(c=>c.pendingOfficial);add(pending.id)");assert.equal(run("deck[cards.find(c=>c.pendingOfficial).id]"),undefined);
+// Changing IP resets both the core-card list and any previous recommendations.
+const recNodes=Object.fromEntries(['#recommendSeries','#seed','#run','#recs'].map(id=>[id,{value:'',innerHTML:'',disabled:false}]));
+context.document.querySelector=id=>recNodes[id]||null;
+run('updateRecommendSeries()');assert.equal(recNodes['#run'].disabled,true);
+for(const series of new Set(data.cards.map(c=>c.series))){
+  recNodes['#recommendSeries'].value=series;run('updateRecommendSeries()');
+  assert.ok(!recNodes['#recs'].innerHTML.includes('class="rec"'));
+  if(!recNodes['#seed'].value){assert.equal(recNodes['#run'].disabled,true);continue;}
+  assert.equal(byId(recNodes['#seed'].value).series,series);
+  const coreIds=[...recNodes['#seed'].innerHTML.matchAll(/value="([^"]+)"/g)].map(m=>m[1]);
+  assert.ok(coreIds.every(id=>byId(id).series===series&&!byId(id).pendingOfficial&&byId(id).typeJa!=='アクションポイント'));
+  run('rec()');
+  const ids=[...recNodes['#recs'].innerHTML.matchAll(/onclick="add\('([^']+)'\)"/g)].map(m=>m[1]);
+  assert.ok(ids.length>0);assert.ok(ids.every(id=>byId(id).series===series&&id!==recNodes['#seed'].value));
+}
+run("goRec('IYS-1-042')");assert.equal(recNodes['#recommendSeries'].value,'犬夜叉');assert.equal(recNodes['#seed'].value,'IYS-1-042');
 console.log(`PASS: ${data.cardCount} cards / ${data.printCount} prints across 58 titles, complete numbered sets, official numeric fixtures, filters, exact card-number prices, reprint limits and separate AP count.`);
