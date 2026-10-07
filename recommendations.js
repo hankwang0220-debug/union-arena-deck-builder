@@ -27,4 +27,18 @@ function catalogRecommendationsHTML(a){
   return `<button class="btn catalog-pair-toggle" type="button" aria-expanded="false" aria-controls="pairs-${esc(a.id)}" onclick="toggleCatalogPairs(this)">顯示搭配</button><section id="pairs-${esc(a.id)}" class="catalog-recommendations" aria-label="${esc(a.name)} ${esc(a.id)} 的搭配參考"><h3>${result.evidence?'常見搭配':'相似搭配參考'}</h3>${result.evidence?`<p class="meta">UPTCG · ${result.matches.length} 種參考組合</p>`:'<p class="meta">尚無牌組紀錄，依同作品相似度參考</p>'}${result.items.slice(0,3).map(row).join('')}<details class="catalog-more"><summary>展開更多搭配${result.evidence?'與來源':''}</summary>${result.items.slice(3).map(row).join('')}${result.evidence?`<div class="catalog-sources"><h4>搭配卡的參考牌組</h4>${result.items.map(x=>`<p><b>${esc(x.b.name)} · ${esc(x.b.id)}</b><br>${x.sources.slice(0,2).map(d=>`<a href="${esc(d.source)}" target="_blank" rel="noopener noreferrer">${esc(d.name)} ↗</a><br>代碼 ${esc(d.code||'未提供')} · ${d.cards[x.b.id]} 張`).join('<br>')}</p>`).join('')}<p class="meta">至 UPTCG 社群輸入代碼核對。<br>${esc(referenceDeckData.updatedAt.slice(0,10))} 快照 · 社群組牌參考</p></div>`:'<p class="meta">僅依顏色、特徵與效果相似度提供參考。</p>'}</details></section>`;
 }
 
-function toggleCatalogPairs(button){const entry=button.closest(".catalog-entry"),open=entry.classList.toggle("pairs-open");button.setAttribute("aria-expanded",String(open));button.textContent=open?"收起搭配":"顯示搭配";}
+function toggleCatalogPairs(button){const entry=button.closest(".catalog-entry"),open=entry.classList.toggle("pairs-open");button.setAttribute("aria-expanded",String(open));button.textContent=open?"收起搭配":"顯示搭配";if(open)positionCatalogPairs(entry);}
+
+function positionCatalogPairs(entry){
+  const panel=entry.querySelector(".catalog-recommendations");if(!panel)return;
+  const rect=entry.querySelector(".card").getBoundingClientRect(),vw=window.innerWidth,vh=window.innerHeight;
+  const right=vw-rect.right-12,left=rect.left-12,onRight=right>=left,space=Math.max(right,left);
+  const width=space>=180?Math.min(300,space):Math.max(0,vw-24);
+  panel.style.width=width+"px";panel.style.left=(space>=180?(onRight?rect.right:rect.left-width):12)+"px";
+  panel.style.top=Math.max(12,Math.min(rect.top,vh-panel.getBoundingClientRect().height-12))+"px";
+}
+function updateCatalogPairPosition(){const entry=document.querySelector(".catalog-entry.pairs-open, .catalog-entry:hover, .catalog-entry:focus-within");if(entry)positionCatalogPairs(entry);}
+document.addEventListener("pointerover",event=>{const entry=event.target.closest?.(".catalog-entry");if(entry)positionCatalogPairs(entry);});
+document.addEventListener("focusin",event=>{const entry=event.target.closest?.(".catalog-entry");if(entry)positionCatalogPairs(entry);});
+addEventListener("scroll",updateCatalogPairPosition,{passive:true,capture:true});
+addEventListener("resize",updateCatalogPairPosition);
