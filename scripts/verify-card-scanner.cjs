@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const context=vm.createContext({});
+vm.runInContext(fs.readFileSync('card-scanner.js','utf8'),context);
+const catalog=new Map(['CSM-1-008','CSM-1-AP01','HTR-1-001','JJK-2-012'].map(id=>[id,{}]));
+const lookup=text=>Array.from(context.scanCardNumbers(text,catalog));
+assert.deepEqual(lookup('UA53BT/CSM-1-008 SR'),['CSM-1-008']);
+assert.deepEqual(lookup('ＣＳＭ－１－００８'),['CSM-1-008']);
+assert.deepEqual(lookup('UAS3BT/CSM 2008 DD'),['CSM-1-008']);
+assert.deepEqual(lookup('CSM - I - OO8\nHTR–1–001'),['CSM-1-008','HTR-1-001']);
+assert.deepEqual(lookup('CSM-1-AP01'),['CSM-1-AP01']);
+assert.deepEqual(lookup('JJK-2-012 JJK-2-012'),['JJK-2-012']);
+assert.deepEqual(lookup('CSM-1-999 BP 4000'),[]);
+assert.deepEqual(lookup('<script>alert(1)</script>'),[]);
+console.log('PASS: exact card number lookup, OCR digit corrections, Unicode, AP cards, multiple candidates, deduplication and unknown-card rejection.');
