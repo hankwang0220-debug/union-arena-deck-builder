@@ -4,7 +4,7 @@ const nodes=new Map(),storage=new Map();
 const node=s=>{if(!nodes.has(s))nodes.set(s,{value:'',textContent:'',hidden:true,innerHTML:'',dataset:{}});return nodes.get(s);};
 const location={href:'https://example.com/union-arena-deck-builder/',hash:'',hostname:'example.com',protocol:'https:'};
 const ctx=vm.createContext({console,TextEncoder,TextDecoder,URL,btoa,atob,addEventListener(){},document:{querySelector:node,querySelectorAll:()=>[],addEventListener(){}},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},window:{location}});
-for(const file of ['data/cards.js','prices.js','data/rules.js','data/images.js','data/reference-decks.js','recommendations.js','deck-sharing.js','app.js'])vm.runInContext(fs.readFileSync(file,'utf8').replace(/init\(\);\s*$/,''),ctx);
+for(const file of ['data/cards.js','prices.js','data/rules.js','data/images.js','data/reference-decks.js','recommendations.js','deck-sharing.js','search-controls.js','app.js'])vm.runInContext(fs.readFileSync(file,'utf8').replace(/init\(\);\s*$/,''),ctx);
 const run=s=>vm.runInContext(s,ctx),base=reference.decks.find(d=>d.series==='鏈鋸人');
 const ap=official.cards.find(c=>c.series===base.series&&c.typeJa==='アクションポイント'&&!c.pendingOfficial);
 const fixture={name:'蕾潔＆炸彈 🃏「分享測試」',series:base.series,cards:{...base.cards,[ap.id]:3}};

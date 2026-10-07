@@ -17,7 +17,7 @@ const fixture=buildSnapshot([{id:'a',cards:raw},{id:'b',cards:raw},{cards:raw.sl
 assert.equal(fixture.decks.length,1);assert.equal(fixture.excluded.duplicate,1);assert.equal(fixture.excluded.invalid,2);
 const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{dataset:{},value:'',innerHTML:'',scrollIntoView(){}});return nodes.get(id);};
 const ctx=vm.createContext({console,addEventListener(){},document:{querySelector:node,querySelectorAll:()=>[],addEventListener(){}},window:{matchMedia:()=>({matches:false})}});
-for(const file of ['data/cards.js','prices.js','data/rules.js','data/images.js','data/reference-decks.js','recommendations.js','app.js'])vm.runInContext(fs.readFileSync(file,'utf8').replace(/init\(\);\s*$/,''),ctx);
+for(const file of ['data/cards.js','prices.js','data/rules.js','data/images.js','data/reference-decks.js','recommendations.js','search-controls.js','app.js'])vm.runInContext(fs.readFileSync(file,'utf8').replace(/init\(\);\s*$/,''),ctx);
 const run=s=>vm.runInContext(s,ctx);
 for(const id of new Set(snapshot.decks.flatMap(d=>Object.keys(d.cards)))){
   const actual=run(`recommendationsFor(cardById.get('${id}'))`),matches=snapshot.decks.filter(d=>d.cards[id]);

@@ -36,7 +36,7 @@ function deckIP(d){return [...new Set([d.series,...Object.keys(d.cards).map(id=>
 function switchDeck(id){const d=decks.find(d=>d.id===id);if(!d)return;activeDeckId=id;deck=d.cards;deckUI();}
 function createDeck(event){event.preventDefault();const name=$('#newDeckName').value.trim();if(!name){$('#newDeckName').focus();return;}const d={id:globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`,name,series:$('#newDeckSeries').value,cards:{}};decks.push(d);$('#newDeckForm').reset();switchDeck(d.id);}
 function renameDeck(event){event.preventDefault();const name=$('#deckName').value.trim();if(!name){$('#deckName').focus();return;}decks.find(d=>d.id===activeDeckId).name=name;deckUI();}
-const filterIds=['q','effect','series','color','type','product','rarity','trait','keyword','trigger','cost','ap','generated','bpMin','bpMax','restriction'];
+const filterIds=['q','nameOnly','illustration','printSet','bpExact','effect','series','color','type','product','rarity','trait','keyword','trigger','cost','ap','generated','bpMin','bpMax','restriction'];
 function option(value,text=value){return `<option value="${esc(value)}">${esc(text)}</option>`;}
 function fillSelect(id,values,title,format=x=>x){$('#'+id).innerHTML=option('',title)+[...new Set(values)].sort((a,b)=>typeof a==='number'?a-b:String(a).localeCompare(String(b),'zh-Hant')).map(x=>option(x,format(x))).join('');}
 function cardLimit(c){return c.type==='AP 卡'?3:(officialRules.limits[c.id]??4);}
@@ -53,7 +53,7 @@ function init(){
   fillSelect('series',cards.map(c=>c.series),'全部作品');fillSelect('color',cards.map(c=>c.color),'全部顏色');fillSelect('type',cards.map(c=>c.type).concat('BP 標誌','限制卡'),'全部類型');
   fillSelect('product',cards.flatMap(c=>c.products),'全部商品',productLabel);fillSelect('rarity',cards.flatMap(c=>c.rarities),'全部稀有度',x=>x==='-'?'未標示':x);
   fillSelect('trait',cards.flatMap(c=>c.traits).concat('none'),'全部特徵',x=>x==='none'?'無特徵':label(x));
-  fillSelect('keyword',cards.flatMap(c=>c.keywords),'全部效果標籤',label);fillSelect('trigger',cards.flatMap(c=>c.trigger).concat('none'),'全部觸發',x=>x==='none'?'無觸發':label(x));
+  fillSelect('keyword',cards.flatMap(c=>c.keywords),'全部效果',effectOptionLabel);$('#keyword').options[0].insertAdjacentHTML('afterend',option('@impact','衝擊／Impact（全部數值）')+option('@damage','傷害（全部數值）'));$('#keyword').value='';fillSelect('trigger',cards.flatMap(c=>c.trigger).concat('none'),'全部觸發',x=>x==='none'?'無觸發':label(x));
   for(const id of ['cost','ap','generated'])fillSelect(id,cards.filter(c=>!c.pendingOfficial&&c.type!=='AP 卡'&&c[id]!==null).map(c=>c[id]),'不限');
   fillSelect('recommendSeries',cards.map(c=>c.series),'請選擇作品 IP');
   fillSelect('newDeckSeries',cards.map(c=>c.series),'請選擇作品 IP');
@@ -64,6 +64,7 @@ function init(){
   $('#copyDeckShare').addEventListener('click',copyDeckShare);
   addEventListener('hashchange',loadSharedDeckFromURL);
   $('#recommendSeries').addEventListener('change',()=>updateRecommendSeries());updateRecommendSeries();
+  initSourceSearch();
   $('#coverage').textContent=`${officialCardData.sources.length} 個作品 · ${cards.length.toLocaleString('zh-TW')} 種卡片 · ${officialCardData.printCount.toLocaleString('zh-TW')} 個印刷版本`;
   $('#coverageDetails').textContent=officialCardData.sources.map(s=>`${s.title} ${s.cardCount} 種卡片／${s.printCount} 個印刷版本${s.pendingOfficial?'（預覽）':''}`).join(' · ');
   $('#footer').textContent=`資料產生：${officialCardData.updatedAt.slice(0,10)} · 共 ${cards.length} 種卡片、${officialCardData.printCount} 個印刷版本。繁體中文參考翻譯來自路基亞中文卡表，官方日文可展開核對；預覽卡的官方數值尚待核對。`;
@@ -71,20 +72,27 @@ function init(){
   $('#reset').onclick=()=>{filterIds.forEach(id=>$('#'+id).value='');$('#sort').value='id';page=1;render();};
   $$('.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.view));$('#run').onclick=rec;render();deckUI();loadSharedDeckFromURL();
 }
+function effectOptionLabel(value){return label(value).replace('Impact','衝擊／Impact').replace('Step／移動','滑步／Step');}
+function matchesEffect(c,value){if(value.startsWith('rugia:'))return sourceEffectMatches(c,value);if(value==='@impact')return c.keywords.some(k=>/^インパクト(?:$|[（(])/.test(k));if(value==='@damage')return c.keywords.some(k=>/^ダメージ(?:$|[（(])/.test(k));return c.keywords.includes(value);}
 const normalize=s=>String(s).normalize('NFKC').toLowerCase().replace(/\s+/g,'');
 function filterCards(list,f){
   const q=normalize(f.q||''),effect=normalize(f.effect||'');
   return list.filter(c=>{
+    if(f.nameOnly&&!normalize(c.name+' '+c.nameJa).includes(normalize(f.nameOnly)))return false;
+    if((f.printSet||f.rarity||f.illustration)&&!c.prints.some(p=>printMatches(p,f)))return false;
+    if(f.bpExact&&c.bp!==Number(f.bpExact))return false;
     if(effect&&!normalize([c.textZh||'',c.triggerTextZh||'',c.text,c.triggerText,...c.keywords,...c.keywords.map(label),...c.trigger,...c.trigger.map(label)].join(' ')).includes(effect))return false;
     if(f.restriction){const limit=cardLimit(c);if(c.pendingOfficial||c.type==='BP 標誌'||c.type==='AP 卡'||(f.restriction==='normal'?limit!==4:f.restriction==='limited'?limit>=4:limit!==Number(f.restriction)))return false;}
     for(const k of ['series','color'])if(f[k]&&c[k]!==f[k])return false;
     if(f.type==='限制卡'){
       if(c.type!=='限制卡'&&(c.type==='AP 卡'||!officialRules.limits[c.id]))return false;
     }else if(f.type&&c.type!==f.type)return false;
-    for(const [key,field] of [['product','products'],['rarity','rarities'],['trait','traits'],['keyword','keywords'],['trigger','trigger']]){
+    for(const [key,field] of [['product','products'],['trait','traits'],['keyword','keywords'],['trigger','trigger']]){
+      if(key==='keyword'&&f[key]){if(!matchesEffect(c,f[key]))return false;continue;}
       if(f[key]==='none'){if(c[field].length)return false;}else if(f[key]&&!c[field].includes(f[key]))return false;
     }
-    for(const k of ['cost','ap','generated'])if(f[k]!==undefined&&f[k]!==''&&(c.pendingOfficial||c.type==='AP 卡'||c[k]!==Number(f[k])))return false;
+    if(f.generated){const variable=c.generatedEnergy.some(e=>e.variable);if(c.pendingOfficial||c.type==='AP 卡'||(f.generated.startsWith('variable:')?(c.generated!==Number(f.generated.slice(9))||!variable):c.generated!==Number(f.generated)))return false;}
+    for(const k of ['cost','ap'])if(f[k]!==undefined&&f[k]!==''&&(c.pendingOfficial||c.type==='AP 卡'||c[k]!==Number(f[k])))return false;
     if(f.bpMin!==undefined&&f.bpMin!==''&&(c.bp===null||c.bp<Number(f.bpMin)))return false;
     if(f.bpMax!==undefined&&f.bpMax!==''&&(c.bp===null||c.bp>Number(f.bpMax)))return false;
     return !q||normalize([c.id,c.name,c.nameJa,c.textZh||'',c.triggerTextZh||'',c.text,c.triggerText,...c.traits,...c.traits.map(label),...c.keywords.map(label),...c.trigger.map(label),...c.prints.map(p=>p.number)].join(' ')).includes(q);
@@ -99,7 +107,7 @@ function tags(values){return values.map(t=>`<span class="tag">${esc(label(t))}</
 function render(){
   const f=Object.fromEntries(filterIds.map(id=>[id,$('#'+id).value]));let list=filterCards(cards,f);
   const sort=$('#sort').value;
-  list.sort((a,b)=>sort==='cost'?(a.cost??Infinity)-(b.cost??Infinity)||a.id.localeCompare(b.id):sort==='bp'?(b.bp??-1)-(a.bp??-1)||a.id.localeCompare(b.id):sort==='name'?a.name.localeCompare(b.name,'zh-Hant'):a.id.localeCompare(b.id));
+  sortCards(list,sort);
   const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));page=Math.min(page,pages);
   $('#resultCount').textContent=`找到 ${list.length}／${cards.length} 種卡片`;
   $('#cards').innerHTML=list.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE).map(c=>`<article class="catalog-entry"><button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="meta">${esc(c.id)} · ${esc(c.type)} · ${esc(c.color)}</span>${!c.pendingOfficial&&cardLimit(c)<4&&c.type!=='AP 卡'?tags([restrictionLabel(c)]):''}<span class="name">${esc(c.name)}</span>${c.pendingOfficial?tags(['預覽卡・官方資料待核對']):''}${c.name!==c.nameJa?`<span class="meta">${esc(c.nameJa)}</span>`:''}<span class="metrics">${c.type==='AP 卡'?'行動點卡':`<span>能源 ${c.cost??'—'}</span><span>AP ${c.ap??'—'}</span><span>BP ${esc(c.bpText)}</span>`}</span><span>${tags(c.traits.length?c.traits:['無特徵'])}</span><span class="meta">${esc(c.rarities.join(' / '))} · ${c.prints.length} 個印刷版本</span><span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}</button>${catalogRecommendationsHTML(c)}</article>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;

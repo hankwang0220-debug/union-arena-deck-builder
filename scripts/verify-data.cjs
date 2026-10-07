@@ -36,6 +36,7 @@ vm.runInContext(fs.readFileSync('data/rules.js','utf8'),context);
 vm.runInContext(fs.readFileSync('data/images.js','utf8'),context);
 vm.runInContext(fs.readFileSync('data/reference-decks.js','utf8'),context);
 vm.runInContext(fs.readFileSync('recommendations.js','utf8'),context);
+vm.runInContext(fs.readFileSync('search-controls.js','utf8'),context);
 // Exercise pure filtering and deck constraints without starting the DOM renderer.
 vm.runInContext(fs.readFileSync('app.js','utf8').replace(/init\(\);\s*$/,''),context);
 function run(code){return vm.runInContext(code,context);}
