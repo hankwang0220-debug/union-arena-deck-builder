@@ -46,6 +46,7 @@ function renderMarkers(){
   $('#markerList').innerHTML=markers.filter(m=>!$('#markerType').value||m.type===$('#markerType').value).map(m=>`<article class="card"><span class="meta">對戰輔助用品</span><span class="name">${m.name}</span><p>${m.text}</p><span class="tag">不計入牌組張數</span></article>`).join('');
 }
 function init(){
+  initTheme();
   $('#exchangeRate').innerHTML=exchangeRateNote();
   $('#restriction').innerHTML=option('','全部使用限制')+option('normal','一般卡（最多 4 張）')+option('limited','限制卡（1 或 2 張）')+option('1','限制 1 張')+option('2','限制 2 張');
   $('#markerType').addEventListener('change',renderMarkers);renderMarkers();
