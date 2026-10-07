@@ -19,7 +19,23 @@ function productLabel(value){
 const cards=officialCardData.cards.map(c=>({...c,name:c.nameZh||names[c.nameJa]||(c.typeJa==='アクションポイント'?`${c.series} AP 卡`:c.nameJa),color:colors[c.color]||c.color,type:types[c.typeJa]||c.typeJa,fx:c.keywords,products:[...new Set(c.prints.flatMap(p=>p.products.length?p.products:[`${p.number.split('/')[0]}（官方未標示商品名稱）`]))],generated:c.generatedEnergy.reduce((n,e)=>n+e.amount,0)}));
 const cardById=new Map(cards.map(c=>[c.id,c]));
 const selectedImages={};
-const deck={};let page=1,selectedCardId=null;const PAGE_SIZE=30;
+const DECK_STORAGE='ua-deck-lab-decks-v1';
+let decks=[{id:'default',name:'我的牌組',series:'',cards:{}}],activeDeckId='default';
+try{
+  const saved=JSON.parse(localStorage.getItem(DECK_STORAGE));
+  if(Array.isArray(saved?.decks)&&saved.decks.length){
+    const ids=new Set();
+    const valid=saved.decks.filter(d=>d&&typeof d.id==='string'&&!ids.has(d.id)&&ids.add(d.id)&&typeof d.name==='string'&&d.name.trim()&&d.cards&&typeof d.cards==='object'&&!Array.isArray(d.cards));
+    if(valid.length){decks=valid.map(d=>({...d,series:typeof d.series==='string'?d.series:'',cards:Object.fromEntries(Object.entries(d.cards).filter(([id,n])=>cardById.has(id)&&Number.isInteger(n)&&n>0))}));activeDeckId=decks.some(d=>d.id===saved.activeDeckId)?saved.activeDeckId:decks[0].id;}
+  }
+}catch{}
+let deck=decks.find(d=>d.id===activeDeckId).cards;
+let page=1,selectedCardId=null;const PAGE_SIZE=30;
+function saveDecks(){try{localStorage.setItem(DECK_STORAGE,JSON.stringify({decks,activeDeckId}));$('#deckSaveStatus').textContent='牌組已自動儲存於此瀏覽器';}catch{$('#deckSaveStatus').textContent='此瀏覽器無法儲存牌組，重新整理後可能遺失';}}
+function deckIP(d){return [...new Set([d.series,...Object.keys(d.cards).map(id=>cardById.get(id).series)].filter(Boolean))].join('／')||'尚未選擇 IP';}
+function switchDeck(id){const d=decks.find(d=>d.id===id);if(!d)return;activeDeckId=id;deck=d.cards;deckUI();}
+function createDeck(event){event.preventDefault();const name=$('#newDeckName').value.trim();if(!name){$('#newDeckName').focus();return;}const d={id:globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`,name,series:$('#newDeckSeries').value,cards:{}};decks.push(d);$('#newDeckForm').reset();switchDeck(d.id);}
+function renameDeck(event){event.preventDefault();const name=$('#deckName').value.trim();if(!name){$('#deckName').focus();return;}decks.find(d=>d.id===activeDeckId).name=name;deckUI();}
 const filterIds=['q','effect','series','color','type','product','rarity','trait','keyword','trigger','cost','ap','generated','bpMin','bpMax','restriction'];
 function option(value,text=value){return `<option value="${esc(value)}">${esc(text)}</option>`;}
 function fillSelect(id,values,title,format=x=>x){$('#'+id).innerHTML=option('',title)+[...new Set(values)].sort((a,b)=>typeof a==='number'?a-b:String(a).localeCompare(String(b),'zh-Hant')).map(x=>option(x,format(x))).join('');}
@@ -39,6 +55,10 @@ function init(){
   fillSelect('keyword',cards.flatMap(c=>c.keywords),'全部效果標籤',label);fillSelect('trigger',cards.flatMap(c=>c.trigger).concat('none'),'全部觸發',x=>x==='none'?'無觸發':label(x));
   for(const id of ['cost','ap','generated'])fillSelect(id,cards.filter(c=>!c.pendingOfficial&&c.type!=='AP 卡'&&c[id]!==null).map(c=>c[id]),'不限');
   fillSelect('recommendSeries',cards.map(c=>c.series),'請選擇作品 IP');
+  fillSelect('newDeckSeries',cards.map(c=>c.series),'請選擇作品 IP');
+  $('#deckSelect').addEventListener('change',e=>switchDeck(e.target.value));
+  $('#newDeckForm').addEventListener('submit',createDeck);
+  $('#renameDeckForm').addEventListener('submit',renameDeck);
   $('#recommendSeries').addEventListener('change',()=>updateRecommendSeries());updateRecommendSeries();
   $('#coverage').textContent=`${officialCardData.sources.length} 個作品 · ${cards.length.toLocaleString('zh-TW')} 種卡片 · ${officialCardData.printCount.toLocaleString('zh-TW')} 個印刷版本`;
   $('#coverageDetails').textContent=officialCardData.sources.map(s=>`${s.title} ${s.cardCount} 種卡片／${s.printCount} 個印刷版本${s.pendingOfficial?'（預覽）':''}`).join(' · ');
@@ -79,8 +99,9 @@ function render(){
   const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));page=Math.min(page,pages);
   $('#resultCount').textContent=`找到 ${list.length}／${cards.length} 種卡片`;
   $('#cards').innerHTML=list.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE).map(c=>`<button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="meta">${esc(c.id)} · ${esc(c.type)} · ${esc(c.color)}</span>${!c.pendingOfficial&&cardLimit(c)<4&&c.type!=='AP 卡'?tags([restrictionLabel(c)]):''}<span class="name">${esc(c.name)}</span>${c.pendingOfficial?tags(['預覽卡・官方資料待核對']):''}${c.name!==c.nameJa?`<span class="meta">${esc(c.nameJa)}</span>`:''}<span class="metrics">${c.type==='AP 卡'?'行動點卡':`<span>能源 ${c.cost??'—'}</span><span>AP ${c.ap??'—'}</span><span>BP ${esc(c.bpText)}</span>`}</span><span>${tags(c.traits.length?c.traits:['無特徵'])}</span><span class="meta">${esc(c.rarities.join(' / '))} · ${c.prints.length} 個印刷版本</span><span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}</button>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;
-  $('#pagination').innerHTML=list.length?`<button class="btn" onclick="changePage(-1)" ${page===1?'disabled':''}>上一頁</button><span>${page}／${pages} 頁</span><button class="btn" onclick="changePage(1)" ${page===pages?'disabled':''}>下一頁</button>`:'';
+  $('#pagination').innerHTML=list.length?`<button class="btn" onclick="changePage(-1)" ${page===1?'disabled':''}>上一頁</button><span>${page}／${pages} 頁</span><button class="btn" onclick="changePage(1)" ${page===pages?'disabled':''}>下一頁</button><form class="page-jump" onsubmit="jumpPage(event,${pages})" novalidate><label for="pageNumber">前往頁碼</label><input id="pageNumber" type="number" inputmode="numeric" min="1" max="${pages}" step="1" value="${page}" required><button class="btn" type="submit">跳頁</button></form>`:'';
 }
+function jumpPage(event,pages){event.preventDefault();const input=$('#pageNumber'),value=Number(input.value);if(!input.value.trim()||!Number.isInteger(value)){input.setCustomValidity('請輸入整數頁碼');input.reportValidity();input.oninput=()=>input.setCustomValidity('');return;}page=Math.max(1,Math.min(value,pages));render();$('#resultCount').scrollIntoView({block:'nearest'});}
 function changePage(delta){page+=delta;render();$('#resultCount').scrollIntoView({block:'nearest'});}
 function printDifferenceHTML(c){
   if(!c.printDifferences?.length)return '';
@@ -102,6 +123,9 @@ function deckCounts(){let main=0,ap=0;for(const [id,n] of Object.entries(deck)){
 function add(id){const c=cardById.get(id);if(!c||c.pendingOfficial||c.type==='BP 標誌')return;const count=deckCounts();if(c.type==='AP 卡'){if(count.ap>=3)return;}else if((deck[id]||0)>=cardLimit(c)||count.main>=50)return;deck[id]=(deck[id]||0)+1;deckUI();}
 function sub(id){if(!deck[id])return;if(--deck[id]===0)delete deck[id];deckUI();}
 function deckUI(){
+  const current=decks.find(d=>d.id===activeDeckId);
+  $('#deckSelect').innerHTML=decks.map(d=>option(d.id,`${d.name} · ${deckIP(d)}`)).join('');$('#deckSelect').value=activeDeckId;
+  $('#deckName').value=current.name;$('#deckTitle').textContent=`${current.name} · ${deckIP(current)}`;saveDecks();
   const entries=Object.entries(deck),counts=deckCounts();$('#count').textContent=counts.main+(counts.ap?` + ${counts.ap} AP`:'');
   $('#deckList').innerHTML=entries.map(([id,n])=>{const c=cardById.get(id),p=selectedPrice(id);const capped=c.type==='AP 卡'?counts.ap>=3:n>=cardLimit(c)||counts.main>=50;return `<div class="deckrow"><div><b>${esc(c.name)}</b><div class="meta">${esc(c.id)} · ${c.type==='AP 卡'?'AP 卡':`${esc(c.color)} · 能源 ${c.cost}`}</div>${priceSelect(id)}<div class="price-caption">${p?`${yen(p.amount)} × ${n} = ${yen(p.amount*n)} · ${p.stock}`:'尚未估價，未計入小計'}</div></div><b>×${n}</b><div class="actions"><button class="btn" aria-label="增加 ${esc(c.id)}" onclick="add('${id}')" ${capped?'disabled':''}>+</button><button class="btn" aria-label="減少 ${esc(c.id)}" onclick="sub('${id}')">−</button><button class="btn" onclick="show('browse');detail('${id}',true)">查看</button></div></div>`;}).join('')||'<div class="empty">尚未加入卡片</div>';
   const mainEntries=entries.filter(([id])=>cardById.get(id).type!=='AP 卡');
