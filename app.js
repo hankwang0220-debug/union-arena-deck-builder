@@ -114,4 +114,12 @@ function updateRecommendSeries(seedId=''){const series=$('#recommendSeries').val
 function rec(){const a=cardById.get($('#seed').value);if(!a||a.pendingOfficial||a.type==='AP 卡'||a.type==='BP 標誌'||a.series!==$('#recommendSeries').value)return;const list=cards.filter(b=>!b.pendingOfficial&&b.type!=='BP 標誌'&&b.id!==a.id&&b.series===a.series&&b.type!=='AP 卡').map(b=>({b,...syn(a,b)})).sort((a,b)=>b.score-a.score||a.b.id.localeCompare(b.b.id)).slice(0,6);$('#recs').innerHTML=`<h3>${esc(a.series)} · 與「${esc(a.name)} · ${esc(a.id)}」搭配</h3>`+list.map(x=>`<div class="rec"><b>${esc(x.b.name)}</b> <span class="tag">${x.score} 分</span><div class="meta">${esc(x.b.id)} · ${esc(x.b.color)} · ${x.b.type} · 能源 ${x.b.cost}</div><div class="price-caption price">${esc(priceSummary(x.b.id))}</div><div class="muted">${esc(x.reasons.join(' · ')||'同作品的其他選擇')}</div><div class="actions"><button class="btn" onclick="add('${x.b.id}')">加入卡組</button><button class="btn" onclick="show('browse');detail('${x.b.id}',true)">查看卡片</button></div></div>`).join('');}
 function goRec(id){const c=cardById.get(id);if(!c||c.pendingOfficial||c.type==='AP 卡'||c.type==='BP 標誌')return;show('recommend');$('#recommendSeries').value=c.series;updateRecommendSeries(id);rec();}
 function show(id){$$('.view').forEach(v=>v.classList.toggle('hidden',v.id!==id));$$('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));if(id==='deck')deckUI();}
+function backToSearch(){
+  const q=$('#q'),reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  window.scrollTo({top:0,behavior:reduce?'auto':'smooth'});
+  setTimeout(()=>q.focus({preventScroll:true}),reduce?0:350);
+}
+function updateToTop(){$('#toTop').classList.toggle('hidden',$('#browse').classList.contains('hidden')||window.scrollY<600);}
+addEventListener('scroll',updateToTop,{passive:true});
+document.addEventListener('click',e=>{if(e.target.closest('.tabs button'))setTimeout(updateToTop)});
 init();
