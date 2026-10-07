@@ -29,11 +29,13 @@ assert.equal(byId('JJK-1-012').bp,5000);
 assert.equal(byId('JJK-1-012').ap,2);
 assert.equal(byId('JJK-1-094').bp,null);
 assert.ok(data.cards.some(c=>c.generatedEnergy.some(e=>e.variable)));
-const context=vm.createContext({console,document:{querySelector:()=>null,querySelectorAll:()=>[]}});
+const context=vm.createContext({console,addEventListener:()=>{},document:{querySelector:()=>null,querySelectorAll:()=>[],addEventListener:()=>{}}});
 vm.runInContext(fs.readFileSync('data/cards.js','utf8'),context);
 vm.runInContext(fs.readFileSync('prices.js','utf8'),context);
 vm.runInContext(fs.readFileSync('data/rules.js','utf8'),context);
 vm.runInContext(fs.readFileSync('data/images.js','utf8'),context);
+vm.runInContext(fs.readFileSync('data/reference-decks.js','utf8'),context);
+vm.runInContext(fs.readFileSync('recommendations.js','utf8'),context);
 // Exercise pure filtering and deck constraints without starting the DOM renderer.
 vm.runInContext(fs.readFileSync('app.js','utf8').replace(/init\(\);\s*$/,''),context);
 function run(code){return vm.runInContext(code,context);}
