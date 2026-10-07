@@ -2,7 +2,7 @@
 function scanCardNumbers(text, catalog) {
   const normalized=String(text).normalize('NFKC').toUpperCase().replace(/[‐‑–—−_]/g,'-');
   const found=new Set();
-  const pattern=/\b([A-Z0-9]{2,5})\s*[-]\s*([0-9OIL])\s*[-]\s*(AP\s*)?([0-9OIL]{2,3})\b/g;
+  const pattern=/\b([A-Z0-9]{2,5})\s*[-]?\s*([0-9OIL])\s*[-]\s*(AP\s*)?([0-9OIL]{2,3})\b/g;
   const digits=s=>s.replace(/O/g,'0').replace(/[IL]/g,'1');
   for(const match of normalized.matchAll(pattern)) {
     const id=`${match[1]}-${digits(match[2])}-${match[3]?'AP':''}${digits(match[4])}`;
@@ -23,6 +23,35 @@ function scanCardNumbers(text, catalog) {
   }
   return [...found];
 }
+// Find a colored card frame independently of the photograph's outer edges.
+// Reject implausible bounds rather than assuming every photograph is a card close-up.
+function scanCardBounds(pixels,width,height) {
+  const rows=new Uint32Array(height),columns=new Uint32Array(width);
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const i=(y*width+x)*4,high=Math.max(pixels[i],pixels[i+1],pixels[i+2]),low=Math.min(pixels[i],pixels[i+1],pixels[i+2]);
+    if(high>85&&high-low>65&&(high-low)/high>.4){rows[y]++;columns[x]++;}
+  }
+  const ys=[],xs=[];
+  rows.forEach((count,y)=>{if(count>width*.12)ys.push(y);});
+  columns.forEach((count,x)=>{if(count>height*.12)xs.push(x);});
+  if(!xs.length||!ys.length)return null;
+  const left=xs[0],top=ys[0],w=xs[xs.length-1]-left+1,h=ys[ys.length-1]-top+1;
+  if(w/h<.45||w/h>.95||w*h<width*height*.12)return null;
+  return {left:left/width,top:top/height,width:w/width,height:h/height};
+}
+function scanNumberRegions(bounds) {
+  if(!bounds)return [];
+  return [.215,.55].map(width=>({left:bounds.left+bounds.width*.07,top:bounds.top+bounds.height*.966,width:bounds.width*width,height:bounds.height*.023}));
+}
+function scanGrayscale(pixels) {
+  let low=255,high=0;
+  for(let i=0;i<pixels.length;i+=4){
+    const value=Math.round(pixels[i]*.2126+pixels[i+1]*.7152+pixels[i+2]*.0722);
+    pixels[i]=pixels[i+1]=pixels[i+2]=value;low=Math.min(low,value);high=Math.max(high,value);
+  }
+  if(high>low)for(let i=0;i<pixels.length;i+=4)pixels[i]=pixels[i+1]=pixels[i+2]=Math.round((pixels[i]-low)*255/(high-low));
+  return pixels;
+}
 function initCardScanner() {
   const dialog=document.querySelector('#scanDialog');
   if(!dialog)return;
@@ -32,7 +61,7 @@ function initCardScanner() {
   const camera=document.querySelector('#scanCamera'),video=document.querySelector('#scanVideo');
   const startCamera=document.querySelector('#scanStartCamera'),capture=document.querySelector('#scanCapture');
   const again=document.querySelector('#scanAgain'),recent=document.querySelector('#scanRecent');
-  let image=null,busy=false,worker=null,library=null,generation=0,stream=null,cameraPending=false;
+  let image=null,busy=false,worker=null,library=null,generation=0,stream=null,cameraPending=false,recognitionGeneration=-1;
   let history=[];
   try{history=JSON.parse(sessionStorage.getItem('ua-scan-recent')||'[]');}catch{}
   history=Array.isArray(history)?history.filter(id=>cardById.has(id)).slice(0,8):[];
@@ -119,6 +148,21 @@ function initCardScanner() {
     canvas.getContext('2d').drawImage(image,0,start,width,image.naturalHeight-start,0,0,canvas.width,canvas.height);
     return canvas;
   }
+  function numberCanvases(source) {
+    const sample=document.createElement('canvas');sample.width=Math.min(480,source.naturalWidth);
+    sample.height=Math.round(source.naturalHeight*sample.width/source.naturalWidth);
+    const context=sample.getContext('2d');context.drawImage(source,0,0,sample.width,sample.height);
+    const bounds=scanCardBounds(context.getImageData(0,0,sample.width,sample.height).data,sample.width,sample.height);
+    return scanNumberRegions(bounds).map(region=>{
+      const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+      const x=Math.round(region.left*source.naturalWidth),y=Math.round(region.top*source.naturalHeight);
+      const w=Math.min(source.naturalWidth-x,Math.round(region.width*source.naturalWidth)),h=Math.min(source.naturalHeight-y,Math.round(region.height*source.naturalHeight));
+      canvas.width=Math.min(2400,w*7);canvas.height=Math.max(1,Math.round(h*canvas.width/w));
+      ctx.drawImage(source,x,y,w,h,0,0,canvas.width,canvas.height);
+      const data=ctx.getImageData(0,0,canvas.width,canvas.height);scanGrayscale(data.data);ctx.putImageData(data,0,0);
+      return canvas;
+    });
+  }
   document.querySelector('#openScanner').addEventListener('click',()=>dialog.showModal());
   document.querySelector('#closeScanner').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('close',()=>{generation++;stopCamera();resetPhoto();});
@@ -142,19 +186,28 @@ function initCardScanner() {
     busy=true;recognize.disabled=true;photo.disabled=true;startCamera.disabled=true;again.disabled=true;results.replaceChildren();
     document.querySelector('#scanRaw').textContent='';document.querySelector('#scanRawDetails').hidden=true;
     const token=generation;
+    recognitionGeneration=token;
+    const source=image;
     status.textContent='正在準備辨識工具，首次使用需要下載，請稍候…';
     try {
       const ocr=await loadOCR();
       if(!worker)worker=await ocr.createWorker('eng',1,{logger:message=>{
-        if(dialog.open&&busy&&message.status==='recognizing text')status.textContent=`辨識卡號中… ${Math.round(message.progress*100)}%`;
+        if(dialog.open&&busy&&recognitionGeneration===generation&&message.status==='recognizing text')status.textContent=`辨識卡號中… ${Math.round(message.progress*100)}%`;
       }});
       await worker.setParameters({tessedit_pageseg_mode:'7',tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/- '});
-      let data=await worker.recognize(canvasFor(.965,true));
-      let ids=scanCardNumbers(data.data.text,cardById);
-      let raw=data.data.text;
+      if(token!==generation)return;
+      let data,ids=[],raw='';
+      for(const canvas of numberCanvases(source)){
+        if(token!==generation)return;
+        status.textContent='正在放大卡牌邊框內的卡號…';
+        data=await worker.recognize(canvas);raw+='\n'+data.data.text;ids=scanCardNumbers(raw,cardById);
+        if(ids.length)break;
+      }
+      if(!ids.length&&token===generation){data=await worker.recognize(canvasFor(.965,true));raw+='\n'+data.data.text;ids=scanCardNumbers(raw,cardById);}
       await worker.setParameters({tessedit_pageseg_mode:'11',tessedit_char_whitelist:''});
       for(const bottom of [.65,0]){
         if(ids.length)break;
+        if(token!==generation)return;
         status.textContent=bottom?'正在檢查卡片下方…':'正在檢查整張照片…';
         data=await worker.recognize(canvasFor(bottom));raw+='\n'+data.data.text;ids=scanCardNumbers(raw,cardById);
       }

@@ -13,7 +13,7 @@ class Element {
   showModal(){this.open=true;}
   close(){this.open=false;this.fire('close');}
   play(){return Promise.resolve();}
-  getContext(){return {drawImage(){}};}
+  getContext(){return {drawImage(){},getImageData(){return {data:new Uint8ClampedArray(4)};},putImageData(){}};}
   toDataURL(){return 'data:image/jpeg;base64,test';}
 }
 (async()=>{
@@ -23,7 +23,7 @@ let stopped=0,request,resolveCamera;
 const stream={getTracks:()=>[{stop(){stopped++;}}]};
 const navigator={mediaDevices:{getUserMedia:()=>request()}};
 const storage=new Map(),window={};
-const context=vm.createContext({document,navigator,window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},cardById:new Map([['CSM-1-008',{name:'Test',series:'CSM',textZh:'能力'}]]),esc:s=>s,imageTag:()=>'',show(){},detail(){},Image:class{decode(){return Promise.resolve();}},URL:{createObjectURL:()=>'',revokeObjectURL(){}},addEventListener(){}});
+const context=vm.createContext({document,navigator,window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},cardById:new Map([['CSM-1-008',{name:'Test',series:'CSM',textZh:'能力'}]]),esc:s=>s,imageTag:()=>'',show(){},detail(){},Image:class{constructor(){this.naturalWidth=800;this.naturalHeight=1100;}decode(){return Promise.resolve();}},URL:{createObjectURL:()=>'',revokeObjectURL(){}},addEventListener(){}});
 vm.runInContext(fs.readFileSync('card-scanner.js','utf8'),context);
 request=()=>Promise.reject(Object.assign(new Error(),{name:'NotAllowedError'}));
 await get('#scanStartCamera').click();assert.match(get('#scanStatus').textContent,/未取得相機權限/);
