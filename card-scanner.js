@@ -29,8 +29,60 @@ function initCardScanner() {
   const photo=document.querySelector('#scanPhoto'),preview=document.querySelector('#scanPreview');
   const status=document.querySelector('#scanStatus'),results=document.querySelector('#scanResults');
   const recognize=document.querySelector('#scanRecognize');
-  let image=null,busy=false,worker=null,library=null,generation=0;
+  const camera=document.querySelector('#scanCamera'),video=document.querySelector('#scanVideo');
+  const startCamera=document.querySelector('#scanStartCamera'),capture=document.querySelector('#scanCapture');
+  const again=document.querySelector('#scanAgain'),recent=document.querySelector('#scanRecent');
+  let image=null,busy=false,worker=null,library=null,generation=0,stream=null,cameraPending=false;
+  let history=[];
+  try{history=JSON.parse(sessionStorage.getItem('ua-scan-recent')||'[]');}catch{}
+  history=Array.isArray(history)?history.filter(id=>cardById.has(id)).slice(0,8):[];
+  function renderHistory(){
+    recent.replaceChildren();
+    for(const id of history){
+      const button=document.createElement('button');button.type='button';button.className='btn';
+      button.textContent=`${cardById.get(id).name} · ${id}`;
+      button.addEventListener('click',()=>display([id]));recent.append(button);
+    }
+    document.querySelector('#scanRecentSection').hidden=!history.length;
+  }
+  function stopCamera(){
+    if(stream)stream.getTracks().forEach(track=>track.stop());
+    stream=null;video.srcObject=null;camera.hidden=true;capture.disabled=true;
+  }
+  function resetPhoto(){
+    image=null;preview.removeAttribute('src');preview.hidden=true;photo.value='';recognize.disabled=true;
+    document.querySelector('#scanRaw').textContent='';document.querySelector('#scanRawDetails').hidden=true;
+  }
+  async function openCamera(){
+    if(busy||cameraPending)return;
+    if(!navigator.mediaDevices?.getUserMedia){status.textContent='此環境無法開啟即時鏡頭，請使用 HTTPS 網站，或選擇拍照／照片及手動查找。';return;}
+    const token=++generation;cameraPending=true;startCamera.disabled=true;stopCamera();resetPhoto();
+    results.replaceChildren();again.hidden=true;status.textContent='正在開啟鏡頭，請允許相機權限…';
+    try{
+      const next=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+      if(token!==generation||!dialog.open){next.getTracks().forEach(track=>track.stop());return;}
+      stream=next;video.srcObject=stream;camera.hidden=false;await video.play();
+      if(token!==generation||!dialog.open)return;
+      capture.disabled=false;status.textContent='讓整張卡片靠近鏡頭、卡號清楚，再按「拍攝並辨識」。';
+    }catch(error){
+      if(token===generation){stopCamera();status.textContent=error.name==='NotAllowedError'?'未取得相機權限。可改用拍照／選擇照片，或手動輸入卡號。':'無法開啟鏡頭。請確認相機未被其他程式使用，或改用照片查找。';}
+    }finally{cameraPending=false;startCamera.disabled=busy;}
+  }
+  startCamera.addEventListener('click',openCamera);
+  again.addEventListener('click',openCamera);
+  document.querySelector('#scanStopCamera').addEventListener('click',()=>{generation++;stopCamera();status.textContent='鏡頭已關閉，可選擇照片或手動查找。';});
+  capture.addEventListener('click',async()=>{
+    if(busy||!stream||!video.videoWidth)return;
+    const token=++generation,canvas=document.createElement('canvas');
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    canvas.getContext('2d').drawImage(video,0,0);stopCamera();
+    const next=new Image();next.src=canvas.toDataURL('image/jpeg',.95);
+    try{await next.decode();if(token!==generation)return;image=next;preview.src=next.src;preview.hidden=false;recognize.disabled=false;recognize.click();}
+    catch{if(token===generation)status.textContent='拍攝失敗，請重新開啟鏡頭或選擇照片。';}
+  });
+  renderHistory();
   function display(ids) {
+    again.hidden=false;
     results.replaceChildren();
     for(const id of ids) {
       const card=cardById.get(id),article=document.createElement('article');
@@ -38,6 +90,11 @@ function initCardScanner() {
       article.innerHTML=`${imageTag(card)}<div><h3>${esc(card.name)}</h3><p class="meta">${esc(id)} · ${esc(card.series)}</p><h4>卡片能力</h4><div class="rules-text">${esc(card.textZh||card.text||'無卡片效果')}</div><h4>觸發效果</h4><div class="rules-text">${esc(card.triggerTextZh||card.triggerText||'無觸發效果')}</div><button type="button" class="btn primary">確認卡牌，查看完整資料</button></div>`;
       article.querySelector('button').addEventListener('click',()=>{dialog.close();show('browse');detail(id,true);});
       results.append(article);
+    }
+    if(ids.length===1){
+      history=[ids[0],...history.filter(id=>id!==ids[0])].slice(0,8);
+      try{sessionStorage.setItem('ua-scan-recent',JSON.stringify(history));}catch{}
+      renderHistory();
     }
     status.textContent=ids.length?`找到 ${ids.length} 張可能的卡牌（可能包含誤字修正），請核對卡圖與完整卡號。`:'未找到對應卡號。請拍清楚卡號，或在下方手動輸入完整卡號。';
   }
@@ -64,10 +121,10 @@ function initCardScanner() {
   }
   document.querySelector('#openScanner').addEventListener('click',()=>dialog.showModal());
   document.querySelector('#closeScanner').addEventListener('click',()=>dialog.close());
-  dialog.addEventListener('close',()=>{generation++;if(!busy){image=null;preview.removeAttribute('src');preview.hidden=true;photo.value='';recognize.disabled=true;}});
+  dialog.addEventListener('close',()=>{generation++;stopCamera();resetPhoto();});
   photo.addEventListener('change',async()=>{
     const file=photo.files[0];if(!file||busy)return;
-    const token=++generation;results.replaceChildren();recognize.disabled=true;
+    const token=++generation;stopCamera();results.replaceChildren();again.hidden=true;recognize.disabled=true;
     image=null;preview.hidden=true;preview.removeAttribute('src');
     document.querySelector('#scanRaw').textContent='';document.querySelector('#scanRawDetails').hidden=true;
     if(!file.type.startsWith('image/')){status.textContent='請選擇照片檔案。';return;}
@@ -82,7 +139,8 @@ function initCardScanner() {
   });
   recognize.addEventListener('click',async()=>{
     if(!image||busy)return;
-    busy=true;recognize.disabled=true;photo.disabled=true;results.replaceChildren();
+    busy=true;recognize.disabled=true;photo.disabled=true;startCamera.disabled=true;again.disabled=true;results.replaceChildren();
+    document.querySelector('#scanRaw').textContent='';document.querySelector('#scanRawDetails').hidden=true;
     const token=generation;
     status.textContent='正在準備辨識工具，首次使用需要下載，請稍候…';
     try {
@@ -105,9 +163,10 @@ function initCardScanner() {
     }catch(error){
       if(worker){await worker.terminate().catch(()=>{});worker=null;}
       if(token===generation)status.textContent='辨識未完成。請確認網路連線後重試，或手動輸入卡號查找。';
-    }finally{busy=false;photo.disabled=false;recognize.disabled=!image;if(!dialog.open){image=null;preview.hidden=true;preview.removeAttribute('src');photo.value='';recognize.disabled=true;}}
+    }finally{busy=false;photo.disabled=false;startCamera.disabled=cameraPending;again.disabled=false;recognize.disabled=!image;again.hidden=false;if(!dialog.open)resetPhoto();}
   });
-  document.querySelector('#scanManual').addEventListener('submit',event=>{event.preventDefault();display(scanCardNumbers(document.querySelector('#scanNumber').value,cardById));});
-  addEventListener('pagehide',()=>{if(worker)worker.terminate();});
+  document.querySelector('#scanManual').addEventListener('submit',event=>{event.preventDefault();generation++;stopCamera();display(scanCardNumbers(document.querySelector('#scanNumber').value,cardById));});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){generation++;stopCamera();}});
+  addEventListener('pagehide',()=>{generation++;stopCamera();if(worker){worker.terminate();worker=null;}});
 }
 if(typeof document!=='undefined')initCardScanner();
