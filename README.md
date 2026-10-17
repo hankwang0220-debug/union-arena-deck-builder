@@ -86,6 +86,20 @@
 - 可新增、切換、改名多個牌組，名稱後保留 IP；牌組自動儲存於目前瀏覽器。價格選擇仍保存在本頁記憶體。
 - 分頁旁可輸入頁碼並按 Enter 或「跳頁」。
 
+## 牌組攻略
+
+頂部「牌組攻略」列出所有攻略，可依作品、標籤搜尋，也能用牌組名、卡名、卡號或內文找攻略。攻略內頁有玩法說明、需要能源分布、依類型分組的完整牌組卡圖（關鍵卡加框），點卡片可在右側看卡圖與效果。「複製到我的牌組」會把整副牌另存到「我的卡組」，不覆蓋原有牌組；「複製攻略連結」產生 `#guide=攻略id` 網址，可直接開啟該篇。
+
+新增攻略：
+
+1. 複製 `guides/_template.md`，改成新檔名（開頭不要用底線），填寫開頭的攻略資料與內文。
+2. `series` 使用卡表的作品名稱；`deck` 每行寫 `- 卡號 x張數`，主牌組須剛好 50 張，AP 卡最多 3 張，張數依限制卡規則。
+3. 內文用 Markdown 的 `##` 標題、段落、`-`／`1.` 清單、`**粗體**`、`> 提醒` 與 `[文字](https://網址)`；以 `[[CSM-1-031]]` 引用卡片，網站會顯示卡名並可點開預覽。
+4. 執行 `node scripts/build-guides.cjs` 產生 `data/guides.json` 與 `data/guides.js`；卡號不存在、跨作品、張數不合規則或關鍵卡不在牌組時會列出錯誤並停止。
+5. 執行 `node scripts/verify-guides.cjs` 驗證建置結果、錯誤檢查、內文跳脫與複製牌組。
+
+目前的 `guides/csm-reze-bomb.md` 是示範格式用的範例，牌組取自 UPTCG 公開牌組，玩法說明依卡片效果整理，不是賽事結果。發布需包含 `guides.js` 與 `data/guides.js`。
+
 ## 手機掃描卡牌
 
 頂部「掃描卡牌」可開啟即時後置鏡頭，按「拍攝並辨識」自動查找能力；結果可按「繼續掃描下一張」，並保留此分頁最近查閱的八張卡。亦可用系統拍照介面或選擇既有照片；透過 Tesseract.js 5.1.1 在裝置內辨識卡號，照片不會上傳。首次使用需網路下載 OCR 工具與英文辨識資料。先依有色卡框定位卡片，放大底部卡號並轉為灰階增強對比，再辨識卡號；找不到卡框或卡號時，保留原有的照片底部、下方 35% 與整張照片備援。可處理卡牌四周留有背景的照片，但卡套反光、傾斜或邊框不明顯仍可能影響定位；只列出資料庫內存在的卡號，允許完整卡號中一個字元的誤讀候選，結果需核對卡圖與卡號，不依角色名稱猜測。結果直接顯示能力與卡圖，核對後可開啟完整資料並加入牌組。可手動修正卡號；照片模糊、反光或卡號太小可能無法辨識。即時鏡頭需相機權限及 HTTPS（本機 localhost 亦可）；不支援或拒絕權限時可用照片及手動卡號查找。關閉視窗、切到背景或完成拍攝時會停止鏡頭。不同手機的系統拍照介面由瀏覽器與系統決定。執行 `node scripts/verify-card-scanner.cjs` 驗證卡號解析；執行 `node scripts/verify-card-scanner-ui.cjs` 驗證鏡頭生命週期與查閱流程。
@@ -110,7 +124,7 @@
 
 重新整理官方快照：`python scripts/import-official.py --refresh`；不加 `--refresh` 會使用 `.cache/official` 的已有頁面。`updatedAt` 為資料產生時間，重用快取並不代表重新查閱網站。未來新增卡片後須同步更新測試的卡表數量及收錄範圍。
 
-GitHub Pages 發布需包含 `index.html`、`styles.css`、`app.js`、`prices.js`、`data/cards.js`、`data/rules.js`、`data/images.js` 與 `assets/cards/`。本機修改不會自動推送 GitHub。
+GitHub Pages 發布需包含 `index.html`、`styles.css`、`app.js`、`guides.js`、`data/guides.js`、`prices.js`、`data/cards.js`、`data/rules.js`、`data/images.js` 與 `assets/cards/`。本機修改不會自動推送 GitHub。
 
 ## 來源
 

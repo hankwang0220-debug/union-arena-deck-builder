@@ -1,0 +1,40 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const {parseGuide,validate,build}=require('./build-guides.cjs');
+// 現有攻略全部通過檢查，且 data/guides.js 已重新建置。
+const built=build();
+assert.deepEqual(built.errors,[],built.errors.join('\n'));
+const data=JSON.parse(fs.readFileSync('data/guides.json'));
+assert.deepEqual(data.guides,built.guides,'data/guides.json 過期，請執行 node scripts/build-guides.cjs');
+assert.ok(data.guides.length>=1);
+// 檢查會擋下錯誤的攻略。
+const sample=fs.readFileSync('guides/csm-reze-bomb.md','utf8');
+const check=text=>{const r=parseGuide('t.md',text);return [...r.errors,...(r.meta?validate('t.md',r.meta):[])].join('\n');};
+assert.match(check(sample.replace('CSM-1-016 x2','CSM-1-016 x3')),/主牌組是 51 張/);
+assert.match(check(sample.replace('CSM-1-016 x2','CSM-1-016 x1\n  - CSM-1-017 x5').replace('CSM-1-017 x4\n','')),/上限 4 張/);
+assert.match(check(sample.replace('CSM-1-025 x4','JJK-1-001 x4')),/屬於「咒術迴戰」/);
+assert.match(check(sample.replace('CSM-1-025 x4','CSM-9-999 x4')),/卡表沒有 CSM-9-999/);
+assert.match(check(sample.replace('series: 鏈鋸人','series: 不存在的作品')),/找不到作品/);
+assert.match(check(sample.replace('keyCards: CSM-1-031','keyCards: CSM-1-001')),/關鍵卡 CSM-1-001 不在牌組列表/);
+assert.match(check(sample+'\n[[CSM-9-998]]'),/內文引用的 CSM-9-998/);
+assert.match(check('沒有開頭'),/缺少 ---/);
+// 網頁功能：渲染、篩選、複製到我的卡組。
+const nodes=new Map(),storage=new Map();
+const node=s=>{if(!nodes.has(s))nodes.set(s,{value:'',textContent:'',hidden:false,innerHTML:'',dataset:{},addEventListener(){},classList:{toggle(){}},scrollIntoView(){},offsetTop:0});return nodes.get(s);};
+const location={href:'https://example.com/union-arena-deck-builder/',hash:'',hostname:'example.com',protocol:'https:',pathname:'/union-arena-deck-builder/',search:''};
+const ctx=vm.createContext({console,TextEncoder,TextDecoder,URL,btoa,atob,addEventListener(){},scrollTo(){},history:{replaceState(_,__,u){location.hash=String(u).startsWith('#')?u:'';}},location,document:{querySelector:node,querySelectorAll:()=>[],addEventListener(){},activeElement:null},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},window:{location,matchMedia:()=>({matches:false}),scrollTo(){}}});
+ctx.window.history=ctx.history;
+for(const file of ['data/cards.js','prices.js','data/rules.js','data/images.js','data/reference-decks.js','recommendations.js','deck-sharing.js','search-controls.js','data/guides.js','app.js','guides.js'])vm.runInContext(fs.readFileSync(file,'utf8').replace(/^init\(\);\s*$/m,'').replace(/^initGuides\(\);\s*$/m,''),ctx);
+const run=s=>vm.runInContext(s,ctx);
+const html=run(`guideMarkdown('## 標題\\n\\n段落 **粗體** [[CSM-1-031]]\\n\\n- 一\\n- 二\\n\\n1. 甲\\n\\n> 提醒\\n\\n<img src=x onerror=alert(1)> [連結](https://example.com) [壞](javascript:alert(1))')`);
+assert.match(html,/<h3>標題<\/h3>/);assert.match(html,/<b>粗體<\/b>/);assert.match(html,/guide-ref[^>]*>蕾潔/);
+assert.match(html,/<ul><li>一<\/li><li>二<\/li><\/ul>/);assert.match(html,/<ol><li>甲<\/li><\/ol>/);assert.match(html,/class="notice">提醒/);
+assert.ok(!html.includes('<img'),'內文 HTML 須被跳脫');assert.ok(!html.includes('href="javascript'),'只允許 https 連結');assert.match(html,/href="https:\/\/example.com"/);
+run(`$('#guideQuery').value='砰';`);assert.equal(run('filterGuides(deckGuides.guides,guideFilters()).length'),1,'可用卡名搜尋攻略');
+run(`$('#guideQuery').value='不會出現的字';`);assert.equal(run('filterGuides(deckGuides.guides,guideFilters()).length'),0);
+run(`$('#guideQuery').value='';$('#guideSeries').value='咒術迴戰';`);assert.equal(run('filterGuides(deckGuides.guides,guideFilters()).length'),0);
+run(`$('#guideSeries').value='';`);
+const before=run('decks.length');run(`openGuide('csm-reze-bomb');copyGuideDeck('csm-reze-bomb');copyGuideDeck('csm-reze-bomb')`);
+assert.equal(run('decks.length'),before+1,'同一攻略重複複製不會新增兩次');
+assert.deepEqual(JSON.parse(JSON.stringify(run('decks.find(d=>d.id===activeDeckId).cards'))),data.guides.find(g=>g.id==='csm-reze-bomb').deck);
+assert.match(run(`$('#guideArticle').innerHTML`),/主牌組 50 張/);
+console.log(`攻略檢查通過：${data.guides.length} 篇`);
