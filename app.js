@@ -110,7 +110,7 @@ function render(){
   sortCards(list,sort);
   const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));page=Math.min(page,pages);
   $('#resultCount').textContent=`找到 ${list.length}／${cards.length} 種卡片`;
-  $('#cards').innerHTML=list.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE).map(c=>`<article class="catalog-entry"><button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="meta">${esc(c.id)} · ${esc(c.type)} · ${esc(c.color)}</span>${!c.pendingOfficial&&cardLimit(c)<4&&c.type!=='AP 卡'?tags([restrictionLabel(c)]):''}<span class="name">${esc(c.name)}</span>${c.pendingOfficial?tags(['預覽卡・官方資料待核對']):''}${c.name!==c.nameJa?`<span class="meta">${esc(c.nameJa)}</span>`:''}<span class="metrics">${c.type==='AP 卡'?'行動點卡':`<span>能源 ${c.cost??'—'}</span><span>AP ${c.ap??'—'}</span><span>BP ${esc(c.bpText)}</span>`}</span><span>${tags(c.traits.length?c.traits:['無特徵'])}</span><span class="meta">${esc(c.rarities.join(' / '))} · ${c.prints.length} 個印刷版本</span><span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}</button>${catalogRecommendationsHTML(c)}</article>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;
+  $('#cards').innerHTML=list.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE).map(c=>`<article class="catalog-entry"><button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="name">${esc(c.name)}</span><span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}${effectZhHTML(c)}</button></article>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;
   $('#pagination').innerHTML=list.length?`<button class="btn" onclick="changePage(-1)" ${page===1?'disabled':''}>上一頁</button><span>${page}／${pages} 頁</span><button class="btn" onclick="changePage(1)" ${page===pages?'disabled':''}>下一頁</button><form class="page-jump" onsubmit="jumpPage(event,${pages})" novalidate><label for="pageNumber">前往頁碼</label><input id="pageNumber" type="number" inputmode="numeric" min="1" max="${pages}" step="1" value="${page}" required><button class="btn" type="submit">跳頁</button></form>`:'';
 }
 function jumpPage(event,pages){event.preventDefault();const input=$('#pageNumber'),value=Number(input.value);if(!input.value.trim()||!Number.isInteger(value)){input.setCustomValidity('請輸入整數頁碼');input.reportValidity();input.oninput=()=>input.setCustomValidity('');return;}page=Math.max(1,Math.min(value,pages));render();$('#resultCount').scrollIntoView({block:'nearest'});}
@@ -145,6 +145,11 @@ function addToDeck(deckId,id){
   return{ok:true,name:d.name,copies:d.cards[id]};
 }
 function add(id){addToDeck(activeDeckId,id);}
+function effectZhHTML(c){
+  const eff=c.textZh||'',trg=/^無觸發效果/.test(c.triggerTextZh||'')?'':(c.triggerTextZh||'');
+  if(!eff&&!trg)return '<span class="effect-zh muted">尚無中文效果翻譯</span>';
+  return `<span class="effect-zh">${eff?esc(eff):''}${trg?`<span class="effect-trigger">【觸發】${esc(trg)}</span>`:''}</span>`;
+}
 function copyBadgeText(id,withDeck){const c=cardById.get(id),d=decks.find(d=>d.id===activeDeckId);return `${withDeck?`「${d.name}」`:''}已加入 ${d.cards[id]||0}/${cardLimit(c)} 張`;}
 function copyBadge(id,withDeck=false){return `<span class="copy-count" role="status" aria-live="polite" data-copy-id="${esc(id)}" data-with-deck="${withDeck?1:0}">${esc(copyBadgeText(id,withDeck))}</span>`;}
 function updateCopyBadges(){$$('.copy-count').forEach(el=>{const n=copyBadgeText(el.dataset.copyId,el.dataset.withDeck==='1');if(el.textContent!==n){el.textContent=n;el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');}el.classList.toggle('has',!/已加入 0\//.test(n));});}
