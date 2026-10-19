@@ -1,0 +1,120 @@
+{
+  "article": "https://note.com/supple0046/n/nbc3bfc69f2e0",
+  "contentsReference": "01-contents.png",
+  "figures": [
+    {
+      "section": 6,
+      "title": "蕾潔牌組：主牌組 50 張",
+      "src": "assets/articles/kyurun-cup-20261018/02-reze-deck.png",
+      "reference": "assets/articles/kyurun-cup-20261018/02-reze-deck.png",
+      "screenshot": 2
+    },
+    {
+      "section": 8,
+      "title": "岡部倫太郎 · STG-1-011",
+      "src": "assets/articles/kyurun-cup-20261018/03-steins-gate.png",
+      "reference": "assets/articles/kyurun-cup-20261018/03-steins-gate.png",
+      "screenshot": 3
+    },
+    {
+      "section": 9,
+      "title": "羽川翼 · MGS-1-059",
+      "src": "assets/cards/UA42BT_MGS-1-059.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/04-monogatari.png",
+      "screenshot": 4
+    },
+    {
+      "section": 10,
+      "title": "紅蓮螺巖 · TTG-1-073",
+      "src": "assets/cards/UA56BT_TTG-1-073.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/05-gurren-lagann.png",
+      "screenshot": 5
+    },
+    {
+      "section": 11,
+      "title": "VF-31J 齊格飛（疾風・因梅爾曼） · MCR-2-054",
+      "src": "assets/cards/EX14BT_MCR-2-054.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/06-macross.png",
+      "screenshot": 6
+    },
+    {
+      "section": 12,
+      "title": "花海咲季 · GIM-2-029",
+      "src": "assets/cards/EX13BT_GIM-2-029.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/07-gakumas.png",
+      "screenshot": 7
+    },
+    {
+      "section": 13,
+      "title": "鏈鋸人 · CSM-1-048",
+      "src": "assets/cards/UA53BT_CSM-1-048.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/08-chainsaw-man.png",
+      "batch": 2,
+      "screenshot": 1
+    },
+    {
+      "section": 16,
+      "title": "戀次／露琪亞牌組：主牌組 50 張",
+      "src": "assets/articles/kyurun-cup-20261018/09-renji-rukia-deck.png",
+      "reference": "assets/articles/kyurun-cup-20261018/09-renji-rukia-deck.png",
+      "batch": 2,
+      "screenshot": 2
+    },
+    {
+      "section": 18,
+      "title": "阿散井戀次 · BLC-4-050",
+      "src": "assets/cards/EX15BT_BLC-4-050.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/10-obc-round-1.png",
+      "batch": 2,
+      "screenshot": 3
+    },
+    {
+      "section": 19,
+      "title": "阿散井戀次 · BLC-4-050",
+      "src": "assets/cards/EX15BT_BLC-4-050.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/11-obc-round-2.png",
+      "batch": 2,
+      "screenshot": 4
+    },
+    {
+      "section": 20,
+      "title": "黑崎一護 · BLC-1-041",
+      "src": "assets/cards/UA08BT_BLC-1-041.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/12-obc-round-3.png",
+      "batch": 2,
+      "screenshot": 5
+    },
+    {
+      "section": 21,
+      "title": "黑崎一護 · BLC-1-041",
+      "src": "assets/cards/UA08BT_BLC-1-041.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/13-obc-round-4.png",
+      "batch": 2,
+      "screenshot": 6
+    },
+    {
+      "section": 22,
+      "title": "朽木白哉 · BLC-1-050",
+      "src": "assets/cards/UA08BT_BLC-1-050.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/14-obc-round-5.png",
+      "batch": 2,
+      "screenshot": 7
+    },
+    {
+      "section": 23,
+      "title": "雨葛蘭・哈斯沃德 · BLC-4-012",
+      "src": "assets/cards/EX15BT_BLC-4-012.jpg",
+      "reference": "assets/articles/kyurun-cup-20261018/15-obc-round-6.png",
+      "batch": 2,
+      "screenshot": 8
+    }
+  ],
+  "duplicates": [
+    {
+      "screenshot": 8,
+      "duplicateOf": 7,
+      "reason": "Identical SHA-256"
+    }
+  ],
+  "note": "Screenshots preserved unchanged. Existing matching card art used when available; Okabe uses the supplied screenshot because the local version has different artwork."
+}
