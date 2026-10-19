@@ -110,7 +110,7 @@ function render(){
   sortCards(list,sort);
   const pages=Math.max(1,Math.ceil(list.length/pageSize()));page=Math.min(page,pages);
   $('#resultCount').textContent=`找到 ${list.length}／${cards.length} 種卡片`;
-  $('#cards').innerHTML=list.slice((page-1)*pageSize(),page*pageSize()).map(c=>`<article class="catalog-entry"><button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="name">${esc(c.name)}</span><span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}${effectZhHTML(c)}</button></article>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;
+  $('#cards').innerHTML=list.slice((page-1)*pageSize(),page*pageSize()).map(c=>`<article class="catalog-entry"><button class="card ${selectedCardId===c.id?'selected':''}" style="--card-color:${colorHex[c.color]}" onclick="detail('${c.id}',true)">${imageTag(c)}<span class="name">${esc(c.name)}</span>${tileInfoHTML(c)}</button></article>`).join('')||`<div class="empty">${['limited','1','2'].includes(f.restriction)?'目前收錄的作品沒有符合條件的限制卡。限制名單依日本日版官方公告，核對日期 '+officialRules.checkedAt+'。':'沒有符合條件的卡片，請調整或清除篩選。'}</div>`;
   $('#pagination').innerHTML=list.length?`<button class="btn" onclick="changePage(-1)" ${page===1?'disabled':''}>上一頁</button><span>${page}／${pages} 頁</span><button class="btn" onclick="changePage(1)" ${page===pages?'disabled':''}>下一頁</button><form class="page-jump" onsubmit="jumpPage(event,${pages})" novalidate><label for="pageNumber">前往頁碼</label><input id="pageNumber" type="number" inputmode="numeric" min="1" max="${pages}" step="1" value="${page}" required><button class="btn" type="submit">跳頁</button></form>`:'';
 }
 function jumpPage(event,pages){event.preventDefault();const input=$('#pageNumber'),value=Number(input.value);if(!input.value.trim()||!Number.isInteger(value)){input.setCustomValidity('請輸入整數頁碼');input.reportValidity();input.oninput=()=>input.setCustomValidity('');return;}page=Math.max(1,Math.min(value,pages));render();$('#resultCount').scrollIntoView({block:'nearest'});}
@@ -158,11 +158,14 @@ function closeDetail(){
 addEventListener('popstate',()=>{if($('#detail').classList.contains('modal-open'))hideDetail();});
 addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#detail').classList.contains('modal-open'))closeDetail();});
 window.matchMedia('(max-width:800px)').addEventListener('change',()=>{hideDetail();page=1;render();});
-function effectZhHTML(c){
+function tileInfoHTML(c){
   const eff=c.textZh||'',trg=/^無觸發效果/.test(c.triggerTextZh||'')?'':(c.triggerTextZh||'');
-  if(!eff&&!trg)return '<span class="effect-zh muted">尚無中文效果翻譯</span>';
-  return `<span class="effect-zh">${eff?esc(eff):''}${trg?`<span class="effect-trigger">【觸發】${esc(trg)}</span>`:''}</span>`;
+  const slides=[['卡價',`<span class="price-caption price">${esc(priceSummary(c.id))}</span>${priceListHTML(c.id)}`],['效果',eff?esc(eff):'<span class="muted">尚無中文效果翻譯</span>']];
+  if(trg)slides.push(['觸發',esc(trg)]);
+  return `<span class="info-pane"><span class="info-slides">${slides.map(([l,h])=>`<span class="slide" data-label="${l}"><b class="slide-label">${l}</b>${h}</span>`).join('')}</span>${slides.length>1?`<span class="info-tabs" aria-hidden="true">${slides.map(([l],n)=>`<span class="info-tab${n?'':' active'}" onclick="event.stopPropagation();slideTo(this,${n})">${l}</span>`).join('')}</span>`:''}</span>`;
 }
+function slideTo(tab,n){const s=tab.closest('.info-pane').querySelector('.info-slides');s.scrollTo({left:n*s.clientWidth,behavior:'smooth'});}
+document.addEventListener('scroll',e=>{const s=e.target;if(!s.classList?.contains('info-slides'))return;const n=Math.round(s.scrollLeft/Math.max(1,s.clientWidth));s.parentElement.querySelectorAll('.info-tab').forEach((t,k)=>t.classList.toggle('active',k===n));},true);
 function copyBadgeText(id,withDeck){const c=cardById.get(id),d=decks.find(d=>d.id===activeDeckId);return `${withDeck?`「${d.name}」`:''}已加入 ${d.cards[id]||0}/${cardLimit(c)} 張`;}
 function copyBadge(id,withDeck=false){return `<span class="copy-count" role="status" aria-live="polite" data-copy-id="${esc(id)}" data-with-deck="${withDeck?1:0}">${esc(copyBadgeText(id,withDeck))}</span>`;}
 function updateCopyBadges(){$$('.copy-count').forEach(el=>{const n=copyBadgeText(el.dataset.copyId,el.dataset.withDeck==='1');if(el.textContent!==n){el.textContent=n;el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');}el.classList.toggle('has',!/已加入 0\//.test(n));});}
