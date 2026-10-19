@@ -125,14 +125,39 @@ function detail(id,scroll=false){
   const c=cardById.get(id);if(!c)return;selectedCardId=id;$('#detail').dataset.cardId=id;
   const energy=c.generatedEnergy.map(e=>`${colors[e.color]||e.color} × ${e.amount}${e.variable?'+':''}`).join('、')||'無';
   const stats=[['顏色',c.color],['需要能源',c.cost??'—'],['消費 AP',c.ap??'—'],['BP',c.bpText],['產生能源',c.type==='AP 卡'?'—':energy],['類型',c.type],['使用限制',restrictionLabel(c)]];
-  $('#detail').innerHTML=`<div class="meta">${esc(c.number)} · ${esc(c.series)}</div>${c.pendingOfficial?'<p class="notice">來源預覽卡，官方數值尚待核對，暫不加入牌組。</p>':''}<h2>${esc(c.name)}</h2>${c.name!==c.nameJa?`<div class="muted">${esc(c.nameJa)}</div>`:''}${cardArt(c)}<dl class="stats">${stats.map(([k,v])=>`<div class="stat"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${printDifferenceHTML(c)}<h3>官方特徵</h3><div>${tags(c.traits.length?c.traits:['無特徵'])}</div><h3>效果標籤</h3><div>${tags(c.keywords.length?c.keywords:['無關鍵字效果'])}</div><h3>卡片效果（繁體中文）</h3><div class="rules-text">${esc(c.textZh||'此卡尚未有繁體中文參考翻譯，請展開日文原文核對。')}</div><h3>觸發效果${c.trigger.length?' · '+c.trigger.map(x=>esc(label(x))).join(' / '):''}</h3><div class="rules-text">${esc(c.triggerTextZh||'此卡尚未有繁體中文觸發翻譯，請展開日文原文核對。')}</div>${c.translationSource?`<p class="muted price-note">繁體中文參考翻譯：<a href="${esc(c.translationSource)}" target="_blank" rel="noopener noreferrer">路基亞中文卡表 ↗</a>（香港用語）</p>`:''}<details><summary>日文原文（官方核對）</summary><h3>卡片效果</h3><div class="rules-text">${esc(c.text)}</div><h3>觸發效果</h3><div class="rules-text">${esc(c.triggerText)}</div></details><p><a href="${esc(c.source)}" target="_blank" rel="noopener noreferrer">${c.pendingOfficial?'查看路基亞來源卡表 ↗':'核對官方卡片與 Q&A ↗'}</a></p><details><summary>收錄商品與印刷版本（${c.prints.length}）</summary><ul class="version-list">${c.prints.map(p=>`<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.number)} · ${esc(p.rarity)}${p.printId.includes('_p')?' · 平行／異圖版':''} ↗</a><br>${esc(p.products.map(productLabel).join('、'))}</li>`).join('')}</ul></details>${priceDetail(id)}${recommendationsHTML(c,true)}<div class="actions"><button class="btn primary" onclick="add('${id}')" ${c.pendingOfficial||c.type==='BP 標誌'?'disabled':''}>加入${c.type==='AP 卡'?' AP 卡':'卡組'}</button>${c.pendingOfficial||c.type==='BP 標誌'||c.type==='AP 卡'?'':`<button class="btn" onclick="goRec('${id}')">推薦搭配</button>`}</div>`;
+  $('#detail').innerHTML=`<div class="meta">${esc(c.number)} · ${esc(c.series)}</div>${c.pendingOfficial?'<p class="notice">來源預覽卡，官方數值尚待核對，暫不加入牌組。</p>':''}<div class="title-row"><h2>${esc(c.name)}</h2><button type="button" id="deckPickerBtn" class="btn primary" aria-expanded="false" aria-controls="deckPicker" onclick="toggleDeckPicker('${id}')" ${c.pendingOfficial||c.type==='BP 標誌'?'disabled':''}>＋ 新增到牌組</button></div><div id="deckPicker" class="deck-picker" hidden></div>${c.name!==c.nameJa?`<div class="muted">${esc(c.nameJa)}</div>`:''}${cardArt(c)}<dl class="stats">${stats.map(([k,v])=>`<div class="stat"><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>${printDifferenceHTML(c)}<h3>官方特徵</h3><div>${tags(c.traits.length?c.traits:['無特徵'])}</div><h3>效果標籤</h3><div>${tags(c.keywords.length?c.keywords:['無關鍵字效果'])}</div><h3>卡片效果（繁體中文）</h3><div class="rules-text">${esc(c.textZh||'此卡尚未有繁體中文參考翻譯，請展開日文原文核對。')}</div><h3>觸發效果${c.trigger.length?' · '+c.trigger.map(x=>esc(label(x))).join(' / '):''}</h3><div class="rules-text">${esc(c.triggerTextZh||'此卡尚未有繁體中文觸發翻譯，請展開日文原文核對。')}</div>${c.translationSource?`<p class="muted price-note">繁體中文參考翻譯：<a href="${esc(c.translationSource)}" target="_blank" rel="noopener noreferrer">路基亞中文卡表 ↗</a>（香港用語）</p>`:''}<details><summary>日文原文（官方核對）</summary><h3>卡片效果</h3><div class="rules-text">${esc(c.text)}</div><h3>觸發效果</h3><div class="rules-text">${esc(c.triggerText)}</div></details><p><a href="${esc(c.source)}" target="_blank" rel="noopener noreferrer">${c.pendingOfficial?'查看路基亞來源卡表 ↗':'核對官方卡片與 Q&A ↗'}</a></p><details><summary>收錄商品與印刷版本（${c.prints.length}）</summary><ul class="version-list">${c.prints.map(p=>`<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.number)} · ${esc(p.rarity)}${p.printId.includes('_p')?' · 平行／異圖版':''} ↗</a><br>${esc(p.products.map(productLabel).join('、'))}</li>`).join('')}</ul></details>${priceDetail(id)}${recommendationsHTML(c,true)}<div class="actions"><button class="btn primary" onclick="add('${id}')" ${c.pendingOfficial||c.type==='BP 標誌'?'disabled':''}>加入${c.type==='AP 卡'?' AP 卡':'卡組'}</button>${c.pendingOfficial||c.type==='BP 標誌'||c.type==='AP 卡'?'':`<button class="btn" onclick="goRec('${id}')">推薦搭配</button>`}</div>`;
   if($('#detail .image-version'))$('#detail .image-version').value=chosenImage(c).sourcePrintId;
   $$('.card').forEach(el=>el.classList.toggle('selected',el.getAttribute('onclick')===`detail('${id}',true)`));
   if(scroll)$('#detail').scrollTop=0;
   if(scroll&&window.matchMedia('(max-width:800px)').matches)$('#detail').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function deckCounts(){let main=0,ap=0;for(const [id,n] of Object.entries(deck)){if(cardById.get(id).type==='AP 卡')ap+=n;else main+=n;}return{main,ap};}
-function add(id){const c=cardById.get(id);if(!c||c.pendingOfficial||c.type==='BP 標誌')return;const count=deckCounts();if(c.type==='AP 卡'){if(count.ap>=3)return;}else if((deck[id]||0)>=cardLimit(c)||count.main>=50)return;deck[id]=(deck[id]||0)+1;deckUI();}
+
+function deckCountsOf(cardsMap){let main=0,ap=0;for(const [id,n] of Object.entries(cardsMap)){if(cardById.get(id).type==='AP 卡')ap+=n;else main+=n;}return{main,ap};}
+function deckCounts(){return deckCountsOf(deck);}
+function addToDeck(deckId,id){
+  const c=cardById.get(id),d=decks.find(d=>d.id===deckId);
+  if(!c||!d||c.pendingOfficial||c.type==='BP 標誌')return{ok:false,reason:'此卡目前無法加入牌組'};
+  const count=deckCountsOf(d.cards),limit=cardLimit(c);
+  if(c.type==='AP 卡'){if(count.ap>=3)return{ok:false,reason:'AP 卡已達 3 張上限'};}
+  else if((d.cards[id]||0)>=limit)return{ok:false,reason:`此卡在牌組中已達 ${limit} 張上限`};
+  else if(count.main>=50)return{ok:false,reason:'主牌組已滿 50 張'};
+  d.cards[id]=(d.cards[id]||0)+1;deckUI();
+  return{ok:true,name:d.name,copies:d.cards[id]};
+}
+function add(id){addToDeck(activeDeckId,id);}
+function toggleDeckPicker(id){
+  const box=$('#deckPicker'),btn=$('#deckPickerBtn');if(!box)return;
+  const open=box.hidden;box.hidden=!open;btn.setAttribute('aria-expanded',String(open));
+  if(open){renderDeckPicker(id);box.querySelector('button')?.focus();}
+}
+function renderDeckPicker(id,message=''){
+  const box=$('#deckPicker');if(!box)return;
+  box.innerHTML=`<div class="muted">選擇要加入的牌組</div>${decks.map(d=>{const n=deckCountsOf(d.cards);return `<button type="button" class="deck-pick ${d.id===activeDeckId?'active':''}" onclick="pickDeck('${esc(d.id)}','${id}')"><b>${esc(d.name)}</b><span class="muted">${esc(deckIP(d))} · 主牌 ${n.main}/50${n.ap?` · AP ${n.ap}/3`:''} · 本卡 ×${d.cards[id]||0}</span></button>`;}).join('')}<div class="deck-pick-status" role="status" aria-live="polite">${esc(message)}</div>`;
+}
+function pickDeck(deckId,id){
+  const r=addToDeck(deckId,id);
+  renderDeckPicker(id,r.ok?`✓ 已加入「${r.name}」（本卡 ×${r.copies}）`:`✗ ${r.reason}`);
+}
 function sub(id){if(!deck[id])return;if(--deck[id]===0)delete deck[id];deckUI();}
 function deckUI(){
   if($('#deckShareOutput')){$('#deckShareOutput').hidden=true;$('#deckShareURL').value='';$('#deckShareStatus').textContent='';}
